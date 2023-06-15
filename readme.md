@@ -1,4 +1,5 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # Muse tools
 This repository contains scripts to work with the Muse2 EEG headband made by Interaxon. A lot of things should work with other EEG setups as well but have not been tried.
 
@@ -10,3 +11,6 @@ These scripts stream data stored in XDF format using the LSL protocol. Handy whe
 
 ## Viewer
 This is the Version 2 viewer from https://github.com/alexandrebarachant/muse-lsl, I just modified a few things for convenience.
+
+
+:warning: All of the data (except the raw signals) are re-computed and *do not come from the official Muse SDK*. Although the calculations are not very heavy, it's not optimal, but it does have the advantage of 1/ being very easy to use 2/ being customizable.
