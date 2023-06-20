@@ -71,7 +71,6 @@ def eeg_stream_to_osc(stream_type, remove_aux):
             time.sleep(max(0, t - time.time()))
 
     # Create threads that will compute FFT and send results via OSC
-
     def get_power_band_to_osc_fn(power_band_name, freq_min, freq_max):
         def function():
             while True:
@@ -96,25 +95,33 @@ def eeg_stream_to_osc(stream_type, remove_aux):
 
     # ALPHA
     alpha_thread = Thread(
-        target=get_power_band_to_osc_fn("alpha", freq_min=8, freq_max=12), daemon=True
+        target=get_power_band_to_osc_fn("alpha", freq_min=8, freq_max=12),
+        daemon=True,
+        name="alpha",
     )
     alpha_thread.start()
 
     # BETA
     beta_thread = Thread(
-        target=get_power_band_to_osc_fn("beta", freq_min=12, freq_max=30), daemon=True
+        target=get_power_band_to_osc_fn("beta", freq_min=12, freq_max=30),
+        daemon=True,
+        name="beta",
     )
     beta_thread.start()
 
     # Theta
     theta_thread = Thread(
-        target=get_power_band_to_osc_fn("theta", freq_min=4, freq_max=8), daemon=True
+        target=get_power_band_to_osc_fn("theta", freq_min=4, freq_max=8),
+        daemon=True,
+        name="theta",
     )
     theta_thread.start()
 
     # Delta
     delta_thread = Thread(
-        target=get_power_band_to_osc_fn("delta", freq_min=1, freq_max=4), daemon=True
+        target=get_power_band_to_osc_fn("delta", freq_min=1, freq_max=4),
+        daemon=True,
+        name="delta",
     )
     delta_thread.start()
 
