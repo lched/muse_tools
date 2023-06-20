@@ -45,6 +45,8 @@ class WaveformPlayer(tk.Frame):
         self.master = master
         self.progress = 0.0  # Progress in percentage (0.0 to 100.0)
         self.progress_interval = 100  # Interval to update progress bar in milliseconds
+        self.loop_var = tk.BooleanVar()
+        self.filename = None
         self.pool = None
         self.pack()
 
@@ -53,34 +55,58 @@ class WaveformPlayer(tk.Frame):
     def create_widgets(self):
         self.canvas = tk.Canvas(self, width=800, height=200, bg="white")
         self.canvas.pack()
-
-        self.progress_bar = self.canvas.create_rectangle(0, 0, 0, 0, fill="red")
-
+        self.progress_bar = self.canvas.create_rectangle(0, 0, 0, 0, fill="green")
         self.canvas.bind("<Button-1>", self.load_waveform)
 
-    def load_waveform(self, event):
-        xdf_file = filedialog.askopenfilename(filetypes=[("XDF files", "*.xdf")])
-        streams, _ = pyxdf.load_xdf(xdf_file)
+        self.loop_checkbox = tk.Checkbutton(
+            self,
+            text="Loop",
+            variable=self.loop_var,  # command=self.toggle_loop
+        )
+        self.loop_checkbox.pack()
 
+    def stop_loop(self):
         if self.pool:
             self.pool.terminate()
+            self.pool = None
 
-        self.pool = mp.Pool(processes=len(streams))
+    def load_waveform(self, event):
+        if not self.loop_var.get():
+            self.stop_loop()
 
-        for stream in streams:
-            sample_rate = float(stream["info"]["nominal_srate"][0])
-            if stream["info"]["type"][0].lower() == "eeg":
-                waveform_data = np.mean(stream["time_series"], axis=-1)
-                self.draw_waveform(waveform_data)
-                self.duration = len(waveform_data) / sample_rate
+        if not self.filename or event:
+            self.filename = filedialog.askopenfilename(
+                filetypes=[("XDF files", "*.xdf")]
+            )
+            is_first_loop = True
+        else:
+            is_first_loop = False
 
-            if sample_rate == 0:
-                task = launch_events_stream
+        if self.filename:
+            streams, _ = pyxdf.load_xdf(self.filename)
+
+            if self.pool:
+                self.pool.terminate()
+            self.pool = mp.Pool(processes=len(streams))
+
+            for stream in streams:
+                sample_rate = float(stream["info"]["nominal_srate"][0])
+                if stream["info"]["type"][0].lower() == "eeg":
+                    waveform_data = np.mean(stream["time_series"], axis=-1)
+                    self.draw_waveform(waveform_data)
+                    self.duration = len(waveform_data) / sample_rate
+
+                if sample_rate == 0:
+                    task = launch_events_stream
+                else:
+                    task = launch_sampled_stream
+
+                self.pool.apply_async(task, args=(stream,), callback=self.load_waveform)
+
+            if is_first_loop or self.loop_var.get():
+                self.start_progress()
             else:
-                task = launch_sampled_stream
-            self.pool.apply_async(task, args=(stream,))
-        self.pool.close()
-        self.start_progress()
+                self.stop_loop()
 
     def draw_waveform(self, waveform_data):
         self.canvas.delete("waveform")
