@@ -19,9 +19,10 @@ LSL_PULL_TIMEOUT = 0.0
 OSC_IP = "127.0.0.1"  # Replace with your OSC server IP
 OSC_PORT = 9000  # Replace with your OSC server port
 
-# UPDATE RATES
+# UPDATE RATES (In Hz)
 FFT_COMPUTE_RATE = 10
 FREQUENCY_BANDS_RATE = 10
+CHECK_STREAM_RATE = 10
 
 # FFT parameters
 N_FFT = 128
@@ -52,43 +53,44 @@ def eeg_stream_to_osc(stream_type, remove_aux):
     if remove_aux:
         n_channels -= 1
     sample_rate = inlet.info().nominal_srate()
+    stream_running = True
 
     data = np.zeros((N_FFT, n_channels))
-    # fft = np.zeros((N_FFT // 2 + 1, n_channels))
 
     # Create an OSC client
     osc_client = udp_client.SimpleUDPClient(OSC_IP, OSC_PORT)
-
     shared_list_lock = Lock()
 
     def compute_fft():
         global fft
         while True:
             t = time.time() + 1 / FFT_COMPUTE_RATE
-            with shared_list_lock:
-                fft = np.fft.rfft(data, axis=0).real
-            osc_client.send_message("/muse/eeg_fft", list(np.mean(fft, axis=-1)))
+            if stream_running:
+                with shared_list_lock:
+                    fft = np.fft.rfft(data, axis=0).real
+                osc_client.send_message("/muse/eeg_fft", list(np.mean(fft, axis=-1)))
             time.sleep(max(0, t - time.time()))
 
     # Create threads that will compute FFT and send results via OSC
     def get_power_band_to_osc_fn(power_band_name, freq_min, freq_max):
-        def function():
+        def power_band_to_osc():
             while True:
                 t = time.time() + 1 / FREQUENCY_BANDS_RATE
-                with shared_list_lock:
-                    data = np.mean(
-                        fft[
-                            int(freq_min * N_FFT / sample_rate) : int(
-                                freq_max * N_FFT / sample_rate
-                            )
-                        ]
+                if stream_running:
+                    with shared_list_lock:
+                        data = np.mean(
+                            fft[
+                                int(freq_min * N_FFT / sample_rate) : int(
+                                    freq_max * N_FFT / sample_rate
+                                )
+                            ]
+                        )
+                    osc_client.send_message(
+                        f"/muse/features/{power_band_name}_absolute", data
                     )
-                osc_client.send_message(
-                    f"/muse/features/{power_band_name}_absolute", data
-                )
                 time.sleep(max(0, t - time.time()))
 
-        return function
+        return power_band_to_osc
 
     fft_thread = Thread(target=compute_fft, daemon=True)
     fft_thread.start()
@@ -125,12 +127,15 @@ def eeg_stream_to_osc(stream_type, remove_aux):
     )
     delta_thread.start()
 
+    last_received_time = time.time()
     while True:
         # Read a chunk of samples from LSL
         samples, timestamps = inlet.pull_chunk(
             timeout=LSL_PULL_TIMEOUT, max_samples=LSL_MAX_SAMPLES
         )
         if timestamps:
+            last_received_time = time.time()
+            stream_running = True
             # Send raw signals
             osc_client.send_message(f"/muse/{stream_type.lower()}", samples[0])
 
@@ -138,6 +143,9 @@ def eeg_stream_to_osc(stream_type, remove_aux):
             samples = np.array(samples)[:, ::-1]
             data = np.roll(data, -1, axis=0)
             data[-1, :] = samples
+        else:
+            if time.time() - last_received_time > 1 / CHECK_STREAM_RATE:
+                stream_running = False
 
 
 def lsl_to_osc(remove_aux):
