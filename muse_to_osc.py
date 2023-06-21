@@ -67,7 +67,7 @@ def eeg_stream_to_osc(stream_type, remove_aux):
             t = time.time() + 1 / FFT_COMPUTE_RATE
             if stream_running:
                 with shared_list_lock:
-                    fft = np.fft.rfft(data, axis=0).real
+                    fft = np.abs(np.fft.rfft(data, axis=0))
                 osc_client.send_message("/muse/eeg_fft", list(np.mean(fft, axis=-1)))
             time.sleep(max(0, t - time.time()))
 
