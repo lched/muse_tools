@@ -29,8 +29,8 @@ N_FFT = 256
 SEND_MEAN_FEATURES = True
 
 
-def single_lsl_stream_to_osc(stream_type):
-    stream = pylsl.resolve_byprop("type", stream_type, timeout=LSL_SCAN_TIMEOUT)[0]
+def single_lsl_stream_to_osc(stream_name):
+    stream = pylsl.resolve_byprop("name", stream_name, timeout=LSL_SCAN_TIMEOUT)[0]
     # Create LSL inlet
     inlet = pylsl.StreamInlet(stream, max_chunklen=LSL_MAX_SAMPLES)
 
@@ -43,11 +43,11 @@ def single_lsl_stream_to_osc(stream_type):
         )
         if timestamps:
             # Send raw signals
-            osc_client.send_message(f"/muse/{stream_type.lower()}", samples[0])
+            osc_client.send_message(f"/muse/{stream.type().lower()}", samples[0])
 
 
-def eeg_stream_to_osc(stream_type, use_aux):
-    stream = pylsl.resolve_byprop("type", stream_type, timeout=LSL_SCAN_TIMEOUT)[0]
+def eeg_stream_to_osc(stream_name, use_aux):
+    stream = pylsl.resolve_byprop("name", stream_name, timeout=LSL_SCAN_TIMEOUT)[0]
     # Create LSL inlet
     inlet = pylsl.StreamInlet(stream, max_chunklen=LSL_MAX_SAMPLES)
     n_channels = inlet.info().channel_count()  # Remove last channel
@@ -170,7 +170,7 @@ def eeg_stream_to_osc(stream_type, use_aux):
                 incoming_data = samples[0][:-1]
 
             # Send raw signals
-            osc_client.send_message(f"/muse/{stream_type.lower()}", incoming_data)
+            osc_client.send_message(f"/muse/{stream.type().lower()}", incoming_data)
 
             # Save last datat to the fft buffer
             fft_buffer = np.roll(fft_buffer, -1, axis=0)
@@ -181,21 +181,24 @@ def eeg_stream_to_osc(stream_type, use_aux):
 
 
 def lsl_to_osc(use_aux):
+    # We use stream names instead of the streams objects directly because ctypes
+    # objects containing pointers cannot be pickled
     found_stream = False
     print("Looking for LSL streams...")
     while not found_stream:
-        streams_types = [stream.type() for stream in pylsl.resolve_streams()]
-        if streams_types:
+        streams_names = [stream.name() for stream in pylsl.resolve_streams()]
+        if streams_names:
             found_stream = True
 
     processes = []
 
     # Create processes that will stream data from LSL to OSC
-    for type in streams_types:
-        if type == "EEG":
-            process = mp.Process(target=eeg_stream_to_osc, args=(type, use_aux))
+    for name in streams_names:
+        if name.lower().endswith("eeg"):
+            process = mp.Process(target=eeg_stream_to_osc, args=(name, use_aux))
         else:
-            process = mp.Process(target=single_lsl_stream_to_osc, args=(type,))
+            process = mp.Process(target=single_lsl_stream_to_osc, args=(name,))
+        print(f"Launching stream {name}...")
         process.start()
         processes.append(process)
 
