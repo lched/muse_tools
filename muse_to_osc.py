@@ -11,7 +11,6 @@ import numpy as np
 import pylsl
 from pythonosc import udp_client
 
-# from .utils import get_channels_names
 
 LSL_SCAN_TIMEOUT = 3
 LSL_MAX_SAMPLES = 1
@@ -88,6 +87,9 @@ def eeg_stream_to_osc(stream_type, remove_aux):
                     osc_client.send_message(
                         f"/muse/features/{power_band_name}_absolute", data
                     )
+                    osc_client.send_message(
+                        f"/muse/features/{power_band_name}_relative", data / np.sum(fft)
+                    )
                 time.sleep(max(0, t - time.time()))
 
         return power_band_to_osc
@@ -95,7 +97,7 @@ def eeg_stream_to_osc(stream_type, remove_aux):
     fft_thread = Thread(target=compute_fft, daemon=True)
     fft_thread.start()
 
-    # ALPHA
+    # Alpha
     alpha_thread = Thread(
         target=get_power_band_to_osc_fn("alpha", freq_min=8, freq_max=12),
         daemon=True,
@@ -103,7 +105,7 @@ def eeg_stream_to_osc(stream_type, remove_aux):
     )
     alpha_thread.start()
 
-    # BETA
+    # Beta
     beta_thread = Thread(
         target=get_power_band_to_osc_fn("beta", freq_min=12, freq_max=30),
         daemon=True,
@@ -126,6 +128,14 @@ def eeg_stream_to_osc(stream_type, remove_aux):
         name="delta",
     )
     delta_thread.start()
+
+    # Gamma
+    gamma_thread = Thread(
+        target=get_power_band_to_osc_fn("gamma", freq_min=30, freq_max=45),
+        daemon=True,
+        name="gamma",
+    )
+    gamma_thread.start()
 
     last_received_time = time.time()
     while True:
