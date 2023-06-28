@@ -25,7 +25,7 @@ FREQUENCY_BANDS_RATE = 10
 CHECK_STREAM_RATE = 10
 
 # FFT parameters
-N_FFT = 128
+N_FFT = 256
 
 
 def single_lsl_stream_to_osc(stream_type):
@@ -149,9 +149,12 @@ def eeg_stream_to_osc(stream_type, remove_aux):
 
 
 def lsl_to_osc(remove_aux):
-    streams_types = [stream.type() for stream in pylsl.resolve_streams()]
-    if not streams_types:
-        raise RuntimeError("Can't find any LSL stream.")
+    found_stream = False
+    print("Looking for LSL streams...")
+    while not found_stream:
+        streams_types = [stream.type() for stream in pylsl.resolve_streams()]
+        if streams_types:
+            found_stream = True
 
     processes = []
 
