@@ -8,6 +8,7 @@ This script captures the data coming from all the LSL streams and send them in a
 
 ## LSL stream emulator
 These scripts stream data stored in XDF format using the LSL protocol. Handy when you want to test things without the headband ;)
+The icon comes from https://commons.m.wikimedia.org/wiki/File:Assessment_brain_icon.png
 
 ## Viewer
 This is the Version 2 viewer from https://github.com/alexandrebarachant/muse-lsl, I just modified a few things for convenience.
