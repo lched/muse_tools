@@ -274,7 +274,9 @@ class Canvas(app.Canvas):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--type", type=str, default="EEG")
-    parser.add_argument("--use-aux", action="store_true", default=False)
+    parser.add_argument(
+        "-A", "--aux", dest="use_aux", action="store_true", default=False
+    )
     parser.add_argument("--alpha", action="store_true", default=False)
     args, _ = parser.parse_known_args()
 
