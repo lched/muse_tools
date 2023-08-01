@@ -112,12 +112,15 @@ class WaveformPlayer(tk.Frame):
                 if sample_rate == 0:
                     task = launch_events_stream
                 else:
+                    self.duration = len(waveform_data) / sample_rate
+                    self.duration_label.config(
+                        text=f"Duration: {self.duration:.1f} seconds"
+                    )
+                    self.draw_waveform(waveform_data, markers)
                     task = launch_sampled_stream
 
                 self.pool.apply_async(task, args=(stream,), callback=self.load_waveform)
-            self.duration = len(waveform_data) / sample_rate
-            self.duration_label.config(text=f"Duration: {self.duration:.1f} seconds")
-            self.draw_waveform(waveform_data, markers)
+
             if is_first_loop or self.loop_var.get():
                 self.start_progress()
             else:
@@ -182,6 +185,7 @@ if __name__ == "__main__":
     parser.add_argument("-M", "--markers", action="store_true", help="Show markers")
     args, _ = parser.parse_known_args()
     root = tk.Tk()
+    root.title("EEG Emulator Interface")
     photo = tk.PhotoImage(file="./assets/artboard.png")
     root.wm_iconphoto(False, photo)
     app = WaveformPlayer(root, show_markers=args.markers)
