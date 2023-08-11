@@ -17,6 +17,7 @@ def launch_events_stream(stream):
         type=stream_info["type"][0],
         channel_count=int(stream_info["channel_count"][0]),
         nominal_srate=sample_rate,
+        source_id=stream_info["uid"][0],
     )
     outlet = pylsl.StreamOutlet(info)
     wait_times = np.diff(stream["time_stamps"])
@@ -33,6 +34,7 @@ def launch_sampled_stream(stream):
         type=stream_info["type"][0],
         channel_count=int(stream_info["channel_count"][0]),
         nominal_srate=sample_rate,
+        source_id=stream_info["uid"][0],
     )
     outlet = pylsl.StreamOutlet(info)
     for sample in stream["time_series"]:
@@ -163,7 +165,7 @@ class WaveformPlayer(tk.Frame):
 
     def start_progress(self):
         self.progress = 0.0
-        self.update_progress()
+        self.after(self.progress_interval, self.update_progress)
 
     def update_progress(self):
         if self.progress < 100.0:
