@@ -66,6 +66,10 @@ class WaveformPlayer(tk.Frame):
         self.duration_label = tk.Label(self, text="Duration: 0.0 seconds")
         self.duration_label.pack(side=tk.LEFT)
 
+        # N channels label
+        self.n_streams_label = tk.Label(self, text="\tN streams: 0")
+        self.n_streams_label.pack(side=tk.LEFT)
+
         self.loop_checkbox = tk.Checkbutton(
             self,
             text="Loop",
@@ -99,27 +103,30 @@ class WaveformPlayer(tk.Frame):
             self.pool = mp.Pool(processes=len(streams))
 
             markers = None
+            max_sample_rate = 0
+
+            self.n_streams_label.config(text=f"N streams: {len(streams)}")
             for stream in streams:
                 sample_rate = float(stream["info"]["nominal_srate"][0])
-                if stream["info"]["type"][0].lower() == "eeg":
-                    waveform_data = np.mean(stream["time_series"], axis=-1)
-                    self.duration = len(waveform_data) / sample_rate
+
+                if sample_rate == 0:
+                    task = launch_events_stream
+                else:
+                    if sample_rate > max_sample_rate:
+                        max_sample_rate = sample_rate
+                        waveform_data = np.mean(stream["time_series"], axis=-1)
+                        self.duration = len(waveform_data) / sample_rate
+                        self.duration_label.config(
+                            text=f"Duration: {self.duration:.1f} seconds"
+                        )
+                        self.draw_waveform(waveform_data, markers)
+                    task = launch_sampled_stream
 
                 if stream["info"]["type"][0].lower() == "markers" and self.show_markers:
                     markers = zip(
                         stream["time_stamps"] - stream["time_stamps"][0],
                         stream["time_series"],
                     )
-
-                if sample_rate == 0:
-                    task = launch_events_stream
-                else:
-                    self.duration = len(waveform_data) / sample_rate
-                    self.duration_label.config(
-                        text=f"Duration: {self.duration:.1f} seconds"
-                    )
-                    self.draw_waveform(waveform_data, markers)
-                    task = launch_sampled_stream
 
                 self.pool.apply_async(task, args=(stream,), callback=self.load_waveform)
 
